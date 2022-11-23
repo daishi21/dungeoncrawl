@@ -11,6 +11,7 @@ impl MapArchitect for EmptyArchitect {
             monster_spawns: Vec::new(),
             player_start: Point::zero(),
             muffin_start: Point::zero(),
+            theme: super::themes::DungeonTheme::new(),
         };
         mb.fill(TileType::Floor);
         mb.player_start = Point::new(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
@@ -18,7 +19,7 @@ impl MapArchitect for EmptyArchitect {
         for _ in 0..50 {
             mb.monster_spawns.push(Point::new(
                 rng.range(1, SCREEN_WIDTH),
-                rng.range(1, SCREEN_WIDTH),
+                rng.range(1, SCREEN_HEIGHT),
             ))
         }
         mb

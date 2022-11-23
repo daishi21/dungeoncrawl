@@ -1,6 +1,5 @@
 use crate::prelude::*;
-//mod empty;
-//use empty::EmptyArchitect;
+mod empty;
 mod rooms;
 use rooms::RoomsArchitect;
 mod automata;
@@ -9,9 +8,15 @@ mod drunkard;
 use drunkard::DrunkardsWalkArchitect;
 mod prefab;
 use prefab::apply_prefab;
+mod themes;
+pub use themes::*;
 
 trait MapArchitect {
     fn new(&mut self, rng: &mut RandomNumberGenerator) -> MapBuilder;
+}
+
+pub trait MapTheme: Sync + Send {
+    fn tile_to_render(&self, tile_type: TileType) -> FontCharType;
 }
 
 const NUM_ROOMS: usize = 20;
@@ -21,6 +26,7 @@ pub struct MapBuilder {
     pub monster_spawns: Vec<Point>,
     pub player_start: Point,
     pub muffin_start: Point,
+    pub theme: Box<dyn MapTheme>,
 }
 
 impl MapBuilder {
@@ -32,6 +38,12 @@ impl MapBuilder {
         };
         let mut mb = architect.new(rng);
         apply_prefab(&mut mb, rng);
+
+        mb.theme = match rng.range(0, 2) {
+            0 => DungeonTheme::new(),
+            _ => ForestTheme::new(),
+        };
+
         mb
     }
 
@@ -131,22 +143,19 @@ impl MapBuilder {
             .tiles
             .iter()
             .enumerate()
-            .filter(|(idx, t)|// (1)
-                **t == TileType::Floor &&
-                    DistanceAlg::Pythagoras.distance2d(
-                        *start,
-                        self.map.index_to_point2d(*idx)
-                    ) > 10.0)
+            .filter(|(idx, t)| {
+                **t == TileType::Floor
+                    && DistanceAlg::Pythagoras.distance2d(*start, self.map.index_to_point2d(*idx))
+                        > 10.0
+            })
             .map(|(idx, _)| self.map.index_to_point2d(idx))
             .collect();
 
         let mut spawns = Vec::new();
         for _ in 0..NUM_MONSTERS {
-            let target_index = rng
-                .random_slice_index(&spawnable_tiles) // (2)
-                .unwrap();
+            let target_index = rng.random_slice_index(&spawnable_tiles).unwrap();
             spawns.push(spawnable_tiles[target_index].clone());
-            spawnable_tiles.remove(target_index); // (3)
+            spawnable_tiles.remove(target_index);
         }
         spawns
     }

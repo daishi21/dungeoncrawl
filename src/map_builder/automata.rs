@@ -11,6 +11,7 @@ impl MapArchitect for CellularAutomataArchitect {
             monster_spawns: Vec::new(),
             player_start: Point::zero(),
             muffin_start: Point::zero(),
+            theme: super::themes::DungeonTheme::new(),
         };
         self.random_noise_map(rng, &mut mb.map);
         for _ in 0..10 {
@@ -78,9 +79,7 @@ impl CellularAutomataArchitect {
                     DistanceAlg::Pythagoras.distance2d(center, map.index_to_point2d(idx)),
                 )
             })
-            .min_by(
-                |(_, distance), (_, distance2)| distance.partial_cmp(&distance2).unwrap(), // (15)
-            )
+            .min_by(|(_, distance), (_, distance2)| distance.partial_cmp(&distance2).unwrap())
             .map(|(idx, _)| idx)
             .unwrap();
         map.index_to_point2d(closest_point)
