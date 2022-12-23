@@ -5,7 +5,8 @@ use crate::prelude::*;
 #[read_component(Point)]
 #[read_component(Player)]
 #[read_component(MacGuffin)]
-pub fn end_turn(ecs: &SubWorld, #[resource] turn_state: &mut TurnState) {
+
+pub fn end_turn(ecs: &SubWorld, #[resource] turn_state: &mut TurnState, #[resource] map: &Map) {
     let mut player_hp = <(&Health, &Point)>::query().filter(component::<Player>());
     let mut muffin = <&Point>::query().filter(component::<MacGuffin>());
     let current_state = turn_state.clone();
@@ -16,7 +17,8 @@ pub fn end_turn(ecs: &SubWorld, #[resource] turn_state: &mut TurnState) {
         _ => current_state,
     };
 
-    let muffin_pos = muffin.iter(ecs).nth(0).unwrap();
+    let muffin_default = Point::new(-1, -1);
+    let muffin_pos = muffin.iter(ecs).nth(0).unwrap_or(&muffin_default);
 
     player_hp.iter(ecs).for_each(|(hp, pos)| {
         if hp.current < 1 {
@@ -24,6 +26,10 @@ pub fn end_turn(ecs: &SubWorld, #[resource] turn_state: &mut TurnState) {
         }
         if pos == muffin_pos {
             new_state = TurnState::Victory;
+        }
+        let idx = map.point2d_to_index(*pos);
+        if map.tiles[idx] == TileType::Exit {
+            new_state = TurnState::NextLevel;
         }
     });
 

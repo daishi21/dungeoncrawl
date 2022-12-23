@@ -88,7 +88,7 @@ pub fn player_input(
             }
         };
 
-        /*
+        
         if !did_something {
             if let Ok(mut health) = ecs
                 .entry_mut(player_entity)
@@ -98,7 +98,7 @@ pub fn player_input(
                 health.current = i32::min(health.max, health.current + 1);
             }
         }
-        */
+        
 
         *turn_state = TurnState::PlayerTurn;
     }

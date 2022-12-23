@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub fn spawn_player(ecs: &mut World, pos: Point) {
     ecs.push((
-        Player,
+        Player { map_level: 0 },
         pos,
         Render {
             color: ColorPair::new(WHITE, BLACK),
@@ -39,6 +39,7 @@ pub fn spawn_monster(ecs: &mut World, rng: &mut RandomNumberGenerator, pos: Poin
             glyph,
         },
         ChasingPlayer {},
+        MovingRandomly,
         Health {
             current: hp,
             max: hp,
