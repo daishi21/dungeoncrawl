@@ -1,5 +1,5 @@
 [package]
-name = "dungeoncrawl"
+name = "harder_dungeoncrawl"
 version = "0.1.0"
 authors = ["Magos Daishi <magosdaishi@magosdaishi.de>"]
 edition = "2018"
