@@ -24,19 +24,18 @@ pub fn player_input(
             VirtualKeyCode::Up => Point::new(0, -1),
             VirtualKeyCode::Down => Point::new(0, 1),
             VirtualKeyCode::G => {
-                // (1)
-                let (player, player_pos) = players // (2)
+                let (player, player_pos) = players
                     .iter(ecs)
-                    .find_map(|(entity, pos)| Some((*entity, *pos))) // (3)
+                    .find_map(|(entity, pos)| Some((*entity, *pos)))
                     .unwrap();
 
-                let mut items = <(Entity, &Item, &Point)>::query(); // (4)
+                let mut items = <(Entity, &Item, &Point)>::query();
                 items
                     .iter(ecs)
-                    .filter(|(_entity, _item, &item_pos)| item_pos == player_pos) // (5)
+                    .filter(|(_entity, _item, &item_pos)| item_pos == player_pos)
                     .for_each(|(entity, _item, _item_pos)| {
-                        commands.remove_component::<Point>(*entity); // (6)
-                        commands.add_component(*entity, Carried(player)); // (7)
+                        commands.remove_component::<Point>(*entity);
+                        commands.add_component(*entity, Carried(player));
                     });
                 Point::new(0, 0)
             }
@@ -88,7 +87,6 @@ pub fn player_input(
             }
         };
 
-        /*
         if !did_something {
             if let Ok(mut health) = ecs
                 .entry_mut(player_entity)
@@ -98,7 +96,6 @@ pub fn player_input(
                 health.current = i32::min(health.max, health.current + 1);
             }
         }
-        */
 
         *turn_state = TurnState::PlayerTurn;
     }

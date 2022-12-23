@@ -41,15 +41,11 @@ impl State {
         let mut ecs = World::default();
         let mut resources = Resources::default();
         let mut rng = RandomNumberGenerator::new();
-        let map_builder = MapBuilder::new(&mut rng);
+        let mut map_builder = MapBuilder::new(&mut rng);
         spawn_player(&mut ecs, map_builder.player_start);
-        spawn_muffin(&mut ecs, map_builder.muffin_start);
-        map_builder
-            .rooms
-            .iter()
-            .skip(1)
-            .map(|r| r.center())
-            .for_each(|pos| spawn_monster(&mut ecs, &mut rng, pos));
+        let exit_idx = map_builder.map.point2d_to_index(map_builder.muffin_start);
+        map_builder.map.tiles[exit_idx] = TileType::Exit;
+        spawn_level(&mut ecs, &mut rng, 0, &map_builder.monster_spawns);
         resources.insert(map_builder.map);
         resources.insert(Camera::new(map_builder.player_start));
         resources.insert(TurnState::AwaitingInput);
@@ -62,22 +58,80 @@ impl State {
             monster_systems: build_monster_scheduler(),
         }
     }
+
     fn reset_game_state(&mut self) {
         self.ecs = World::default();
         self.resources = Resources::default();
         let mut rng = RandomNumberGenerator::new();
-        let map_builder = MapBuilder::new(&mut rng);
+        let mut map_builder = MapBuilder::new(&mut rng);
         spawn_player(&mut self.ecs, map_builder.player_start);
-        spawn_muffin(&mut self.ecs, map_builder.muffin_start);
-        map_builder
-            .monster_spawns
-            .iter()
-            .for_each(|pos| spawn_monster(&mut self.ecs, &mut rng, *pos));
+        let exit_idx = map_builder.map.point2d_to_index(map_builder.muffin_start);
+        map_builder.map.tiles[exit_idx] = TileType::Exit;
+        spawn_level(&mut self.ecs, &mut rng, 0, &map_builder.monster_spawns);
         self.resources.insert(map_builder.map);
         self.resources.insert(Camera::new(map_builder.player_start));
         self.resources.insert(TurnState::AwaitingInput);
         self.resources.insert(map_builder.theme);
     }
+
+    fn advance_level(&mut self) {
+        let player_entity = *<Entity>::query()
+            .filter(component::<Player>())
+            .iter(&mut self.ecs)
+            .nth(0)
+            .unwrap();
+
+        use std::collections::HashSet;
+        let mut entities_to_keep = HashSet::new();
+        entities_to_keep.insert(player_entity);
+        <(Entity, &Carried)>::query()
+            .iter(&self.ecs)
+            .filter(|(_e, carry)| carry.0 == player_entity)
+            .map(|(e, _carry)| *e)
+            .for_each(|e| {
+                entities_to_keep.insert(e);
+            });
+        let mut cb = CommandBuffer::new(&mut self.ecs);
+        for e in Entity::query().iter(&self.ecs) {
+            if !entities_to_keep.contains(e) {
+                cb.remove(*e);
+            }
+        }
+        cb.flush(&mut self.ecs);
+
+        <&mut FieldOfView>::query()
+            .iter_mut(&mut self.ecs)
+            .for_each(|fov| fov.is_dirty = true);
+
+        let mut rng = RandomNumberGenerator::new();
+        let mut map_builder = MapBuilder::new(&mut rng);
+        let mut map_level = 0;
+        <(&mut Player, &mut Point)>::query()
+            .iter_mut(&mut self.ecs)
+            .for_each(|(player, pos)| {
+                player.map_level += 1;
+                map_level = player.map_level;
+                pos.x = map_builder.player_start.x;
+                pos.y = map_builder.player_start.y;
+            });
+        if map_level == 2 {
+            spawn_muffin(&mut self.ecs, map_builder.muffin_start);
+        } else {
+            let exit_idx = map_builder.map.point2d_to_index(map_builder.muffin_start);
+            map_builder.map.tiles[exit_idx] = TileType::Exit;
+        }
+        spawn_level(
+            &mut self.ecs,
+            &mut rng,
+            map_level as usize,
+            &map_builder.monster_spawns,
+        );
+        self.resources.insert(map_builder.map);
+        self.resources.insert(Camera::new(map_builder.player_start));
+        self.resources.insert(TurnState::AwaitingInput);
+        self.resources.insert(map_builder.theme);
+    }
+
     fn game_over(&mut self, ctx: &mut BTerm) {
         ctx.set_active_console(2); // (1)
         ctx.print_color_centered(2, RED, BLACK, "Your quest has ended.");
@@ -160,8 +214,15 @@ impl GameState for State {
             TurnState::MonsterTurn => self
                 .monster_systems
                 .execute(&mut self.ecs, &mut self.resources),
-            TurnState::GameOver => self.game_over(ctx),
-            TurnState::Victory => self.victory(ctx),
+            TurnState::GameOver => {
+                self.game_over(ctx);
+            }
+            TurnState::Victory => {
+                self.victory(ctx);
+            }
+            TurnState::NextLevel => {
+                self.advance_level();
+            }
         }
         render_draw_buffer(ctx).expect("Render error");
     }
@@ -169,7 +230,7 @@ impl GameState for State {
 
 fn main() -> BError {
     let context = BTermBuilder::new()
-        .with_title("Dungeon Crawler")
+        .with_title("Muffin Quest")
         .with_fps_cap(30.0)
         .with_dimensions(DISPLAY_WIDTH, DISPLAY_HEIGHT)
         .with_tile_dimensions(32, 32)
